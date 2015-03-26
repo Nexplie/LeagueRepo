@@ -274,6 +274,14 @@ namespace Malzahar
                         } 
                 }
             }
+
+            foreach (var ch in ObjectManager.Get<Obj_AI_Hero>()
+                .Where(y => y.HasBuffOfType(BuffType.Stun) ||
+                y.HasBuffOfType(BuffType.Taunt) ||
+                y.HasBuffOfType(BuffType.Suppression)))
+            {
+                W.Cast(ch.Position, false);
+            }
         }
 
         private static float GetComboDamage(Obj_AI_Base enemy)
