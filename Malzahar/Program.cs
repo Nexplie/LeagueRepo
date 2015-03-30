@@ -282,6 +282,13 @@ namespace Malzahar
             {
                 W.Cast(ch.Position, false);
             }
+
+            if (Hero.IsChannelingImportantSpell() ||
+                Hero.IsCastingInterruptableSpell())
+            {
+                Orbwalker.SetAttack(false);
+                Orbwalker.SetMovement(false);
+            }
         }
 
         private static float GetComboDamage(Obj_AI_Base enemy)
