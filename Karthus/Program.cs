@@ -21,8 +21,6 @@ namespace Karthus
         public static Spell E;
         public static Spell R;
 
-        public static bool Harass;
-
         public static Menu Config;
         private static Obj_AI_Hero Hero;
 
@@ -84,12 +82,10 @@ namespace Karthus
                 };
 
             // - Notification
-            Notifications.AddNotification("Nexplie Malzahar!", 2000);        
 
             Drawing.OnDraw += Drawing_OnDraw;
             Game.OnUpdate += Game_OnGameUpdate;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
-            Interrupter2.OnInterruptableTarget += On_InterruptableTarget;
         }
 
         private static float GetComboDamage(Obj_AI_Hero hero)
@@ -106,11 +102,6 @@ namespace Karthus
                 damage += Hero.GetSpellDamage(hero, SpellSlot.R);
 
             return (float)damage;
-        }
-
-        private static void On_InterruptableTarget(Obj_AI_Hero sender, Interrupter2.InterruptableTargetEventArgs args)
-        {
-            // lol
         }
 
         private static void AntiGapcloser_OnEnemyGapcloser(ActiveGapcloser gapcloser)
@@ -150,16 +141,10 @@ namespace Karthus
                     Drawing.DrawText(Drawing.Width * 0.1f, Drawing.Height * 0.4f, System.Drawing.Color.Red, "Q kill: " + target.ChampionName + " have: " + target.Health + "hp");
                 }
 
-                else if (Q.GetDamage(target) + E.GetDamage(target) > target.Health)
-                {
-                    Render.Circle.DrawCircle(target.ServerPosition, 200, System.Drawing.Color.Red);
-                    Drawing.DrawText(Drawing.Width * 0.1f, Drawing.Height * 0.4f, System.Drawing.Color.Red, "Q + E kill: " + target.ChampionName + " have: " + target.Health + "hp");
-                }
-
                 if (R.GetDamage(target) > target.Health && R.IsReady())
                 {
                     Render.Circle.DrawCircle(target.ServerPosition, 200, System.Drawing.Color.Cyan);
-                    Drawing.DrawText(Drawing.Width * 0.1f, Drawing.Height * 0.4f, System.Drawing.Color.Red, "R kill" + target.ChampionName + " have: " + target.Health + "hp");
+                    Drawing.DrawText(Drawing.Width * 0.2f, Drawing.Height * 0.5f, System.Drawing.Color.Red, "R kill" + target.ChampionName + " have: " + target.Health + "hp");
                 }
             }
         }
@@ -167,116 +152,89 @@ namespace Karthus
         private static void Game_OnGameUpdate(EventArgs args)
         {
 
-            if (Hero.IsZombie)
-                return;
-
-            if (Orbwalker.ActiveMode.ToString() == "LaneClear" || Orbwalker.ActiveMode.ToString() == "Mixed" || Orbwalker.ActiveMode.ToString() == "LastHit")
-                Harass = true;
-            else
-                Harass = false;
-
-            if (Q.IsReady())
+            if (Orbwalker.ActiveMode.ToString() == "Combo")
             {
-                if (!Harass && Orbwalker.ActiveMode.ToString() == "Combo")
+                Obj_AI_Base t = TargetSelector.GetTarget(875f, TargetSelector.DamageType.Magical, true);
+
+                if (W.IsReady())
                 {
-                    Obj_AI_Base t = TargetSelector.GetTarget(875f, TargetSelector.DamageType.Magical, true);
+                    if (t.IsValidTarget(W.Range) &&
+                    !t.HasBuffOfType(BuffType.Invulnerability) &&
+                    HasMana())
+                        W.Cast(t, true, true);
+                }
+
+                if (Q.IsReady())
+                {
                     if (t.IsValidTarget(Q.Range) &&
                         !t.HasBuffOfType(BuffType.Invulnerability) && HasMana())
-                            Q.CastIfHitchanceEquals(t, QHit(), true);
-                }
-                else if (Harass)
-                {
-                    foreach(var target in ObjectManager.Get<Obj_AI_Hero>().Where(target => target.Team != Hero.Team))
-                    {
-                        if (target.IsValidTarget(Q.Range) &&
-                            !target.HasBuffOfType(BuffType.Invulnerability) && HasMana() &&
-                            !Hero.UnderTurret(true))
-                            Q.CastIfHitchanceEquals(target, QHit(), true);
-                    }
+                        Q.CastIfHitchanceEquals(t, QHit(), true);
                 }
 
-                foreach (var target in ObjectManager.Get<Obj_AI_Hero>().Where(target => target.Team != Hero.Team))
+                if (E.IsReady())
                 {
-                    if (target.IsValidTarget(Q.Range) &&
-                        !target.HasBuffOfType(BuffType.Invulnerability) &&
-                        target.Health + 10 < Q.GetDamage(target))
-                        Q.CastIfHitchanceEquals(target, QHit(), true);
+                    if (t.IsValidTarget(E.Range) &&
+                    !t.HasBuffOfType(BuffType.Invulnerability) &&
+                    HasMana())
+                        E.Cast();
                 }
-                
+            }
+
+            if (Orbwalker.ActiveMode.ToString() == "LastHit")
+            {
                 if (Config.Item("LasthitQ").GetValue<bool>())
                 {
                     var minions = MinionManager.GetMinions(Hero.ServerPosition, 875f, MinionTypes.All, MinionTeam.NotAlly);
                     var minion = minions[0];
 
+                    float predictedHealth = HealthPrediction.GetHealthPrediction(minion, (int)(Q.Delay));
                     float dmg = Q.GetDamage(minion);
-                    if (minion.Health + 1 < dmg &&
+                    if (predictedHealth < dmg &&
                         minion.IsValidTarget(Q.Range) &&
                         !Orbwalking.InAutoAttackRange(minion) &&
                         HasMana())
                         Q.CastIfHitchanceEquals(minion, QHit(), true);
                 }
-
-                foreach (var target in ObjectManager.Get<Obj_AI_Hero>().Where(target => target.Team != Hero.Team))
-                {
-                    if (target.HasBuffOfType(BuffType.Stun) ||
-                        target.HasBuffOfType(BuffType.Snare) ||
-                        target.HasBuffOfType(BuffType.Charm) ||
-                        target.HasBuffOfType(BuffType.Fear) ||
-                        target.HasBuffOfType(BuffType.Taunt) ||
-                        target.HasBuffOfType(BuffType.Slow) ||
-                        target.HasBuff("Recall"))
-                    {
-                        Q.CastIfHitchanceEquals(target, QHit(), true);
-                    }
-                }
             }
 
-            if (W.IsReady() && Orbwalker.ActiveMode.ToString() == "Combo")
+            if (Orbwalker.ActiveMode.ToString() == "LaneClear" || Orbwalker.ActiveMode.ToString() == "Mixed")
             {
-                Obj_AI_Base t = TargetSelector.GetTarget(W.Range, TargetSelector.DamageType.Magical, true);
-                if (t.IsValidTarget(W.Range) &&
-                    !t.HasBuffOfType(BuffType.Invulnerability) &&
-                    HasMana())
-                    W.Cast(t, true, true);
-
-                foreach (var target in ObjectManager.Get<Obj_AI_Hero>().Where(target => target.Team != Hero.Team))
+                foreach (var target in ObjectManager.Get<Obj_AI_Hero>()
+                    .Where(target => target.Team != Hero.Team))
                 {
-                    if (target.HasBuffOfType(BuffType.Stun) ||
-                        target.HasBuffOfType(BuffType.Snare) ||
-                        target.HasBuffOfType(BuffType.Charm) ||
-                        target.HasBuffOfType(BuffType.Fear) ||
-                        target.HasBuffOfType(BuffType.Taunt) ||
-                        target.HasBuffOfType(BuffType.Slow) ||
-                        target.HasBuff("Recall"))
-                    {
+                    if (target.IsValidTarget(Q.Range) && !target.HasBuffOfType(BuffType.Invulnerability) && HasMana())
+                        Q.CastIfHitchanceEquals(target, QHit(), true);
+                }
+
+                var minions = MinionManager.GetMinions(Hero.ServerPosition, 875f, MinionTypes.All, MinionTeam.NotAlly);
+                var minion = minions[0];
+
+                if (minion.IsValidTarget(Q.Range) && HasMana())
+                    Q.CastIfHitchanceEquals(minion, QHit(), true);
+                if (minions.Count > 2 && E.IsReady() &&
+                    minion.IsValidTarget(E.Range))
+                    E.Cast();
+            }
+
+            foreach (var target in ObjectManager.Get<Obj_AI_Hero>().
+                Where(target => target.Team != Hero.Team))
+            {
+                if (target.HasBuffOfType(BuffType.Stun) || target.HasBuffOfType(BuffType.Snare) ||
+                    target.HasBuffOfType(BuffType.Charm) || target.HasBuffOfType(BuffType.Fear) ||
+                    target.HasBuffOfType(BuffType.Taunt) || target.HasBuffOfType(BuffType.Slow) ||
+                    target.HasBuff("Recall") && Q.IsReady() && target.IsValidTarget(Q.Range))
+                {
+                    if (Q.IsReady() && target.IsValidTarget(Q.Range))
+                        Q.CastIfHitchanceEquals(target, QHit(), true);
+                    else if (W.IsReady() && target.IsValidTarget(W.Range))
                         W.Cast(target, true, true);
-                    }
-                }
-            }
-
-            if (E.IsReady())
-            {
-                Obj_AI_Base t = TargetSelector.GetTarget(E.Range, TargetSelector.DamageType.Magical, true);
-                if (t.IsValidTarget(E.Range) &&
-                    !t.HasBuffOfType(BuffType.Invulnerability) &&
-                    HasMana())
-                    E.Cast();        
-            }
-
-            if (Hero.IsZombie && !R.IsReady())
-            {
-                foreach (var target in ObjectManager.Get<Obj_AI_Hero>().Where(target => target.Team != Hero.Team))
-                {
-                    if (target.IsValidTarget(Q.Range) &&
-                        Q.IsReady())
-                        Q.CastIfHitchanceEquals(target, QHit(), true);
                 }
             }
         }
 
         private static bool HasMana()
         {
-            if (Hero.Mana > Hero.MaxMana / 1.7)
+            if (Hero.Mana > Hero.MaxMana / 0.1)
                 return true;
             else
                 return false;
