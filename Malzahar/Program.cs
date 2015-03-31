@@ -289,6 +289,11 @@ namespace Malzahar
                 Orbwalker.SetAttack(false);
                 Orbwalker.SetMovement(false);
             }
+            else
+            {
+                Orbwalker.SetAttack(true);
+                Orbwalker.SetMovement(true);
+            }
         }
 
         private static float GetComboDamage(Obj_AI_Base enemy)
