@@ -82,6 +82,7 @@ namespace Karthus
                 };
 
             // - Notification
+            Notifications.AddNotification("Nexplie Karthus!", 2000);
 
             Drawing.OnDraw += Drawing_OnDraw;
             Game.OnUpdate += Game_OnGameUpdate;
